@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-lg rounded-3" style="background-color: #000; color: #0F0;">
+                <div class="card-body p-5">
+                    <h2 class="card-title text-center mb-4">Welcome to The Matrix Chat Room</h2>
+                    {% if error %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ error }}
+                    </div>
+                    {% endif %}
+                    <form method="post" class="needs-validation" novalidate>
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Your Name</label>
+                            <input type="text" class="form-control form-control-lg" id="name" placeholder="Enter your name" name="name" value="{{ name }}" required style="background-color: #262626; color: #00ff00;">
+                            <div class="invalid-feedback">
+                                Please enter your name.
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="code" class="form-label">Room Code (Optional)</label>
+                            <input type="text" class="form-control form-control-lg" id="code" placeholder="Enter room code" name="code" value="{{ code }}" style="background-color: #262626; color: #00ff00;">
+                        </div>
+                        <div class="d-grid gap-3">
+                            <button type="submit" name="join" class="btn btn-custom btn-lg" style="background-color: #00ff00;">Enter The Matrix</button>
+                            <button type="submit" name="create" class="btn btn-custom btn-lg" style="background-color: #00ff00;">Create Your Matrix</button>
+                        </div>
+                    </form>
+                    <p class="text-center mt-4" style="color: #666;">Matrix-inspired chat created by @IllIllIllIllIlI with GPT 3.5 design assistance</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

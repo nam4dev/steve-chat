@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-lg rounded-3" style="background-color: #000; color: #0F0;">
+                <div class="card-body p-5">
+                    <h2 class="card-title text-center mb-4">The Matrix Chat Room: {{ code }}</h2>
+                    <div class="messages" id="messages" style="height: 60vh; overflow-y: auto; background-color: #262626; color: #00ff00;"></div>
+                    <div class="inputs mt-3">
+                        <input type="text" class="form-control mb-2" placeholder="Type your message..." name="message" id="message" style="background-color: #262626; color: #00ff00;">
+                        <button type="button" class="btn btn-primary" onclick="sendMessage()" style="background-color: #00ff00; border-color: #00ff00;">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    var socketio = io();
+
+    const messages = document.getElementById("messages");
+
+    const createMessage = (name, msg) => {
+        const content = `
+        <div class="text">
+            <span>
+                <strong>${name}</strong>: ${msg}
+            </span>
+            <span class="muted">${new Date().toLocaleString()}</span>
+        </div>
+        `;
+        messages.innerHTML += content;
+        // Scroll to the bottom of the messages container
+        messages.scrollTop = messages.scrollHeight;
+    };
+
+    socketio.on("message", (data) => {
+        createMessage(data.name, data.message);
+    });
+
+    const sendMessage = () => {
+        const messageInput = document.getElementById("message");
+        const message = messageInput.value.trim();
+        if (message !== "") {
+            socketio.emit("message", { data: message });
+            messageInput.value = "";
+        }
+    };
+</script>
+{% endblock %}
