@@ -7,10 +7,31 @@ import random
 from string import ascii_uppercase
 
 # Importing MySQL Connector module for database interaction
-import mysql.connector
+# TODO: Follow tutorial at: https://hevodata.com/learn/flask-mysql/
+# import mysql.connector
+# Use of sqlite instead.
+import sqlite3
+from flask import g
+
+DATABASE = fr'C:\Users\namat\OneDrive\Documents\Steve.Bates\steve-chat\database.db'
 
 # Create a Flask application instance
 app = Flask(__name__)
+
+
+def get_db():
+    database = getattr(g, '_database', None)
+    if database is None:
+        database = g._database = sqlite3.connect(DATABASE)
+    return database
+
+
+@app.teardown_appcontext
+def close_connection(exception):
+    database = getattr(g, '_database', None)
+    if database is not None:
+        database.close()
+
 
 # Setting a secret key for session management
 app.config["SECRET_KEY"] = "AgnusD3I"
@@ -19,16 +40,17 @@ app.config["SECRET_KEY"] = "AgnusD3I"
 socketio = SocketIO(app, cors_allowed_origins="https://localhost:5000")
 
 # Establishing a connection to the MySQL database
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    passwd="AZ26dodo",
-    port="3306",
-    database="cs50_final"
-)
+# db = mysql.connector.connect(
+#     host="localhost",
+#     user="root",
+#     passwd="AZ26dodo",
+#     port="3306",
+#     database="cs50_final"
+# )
 
 # Creating a cursor object to interact with the database
-myCursor = db.cursor()
+# myCursor = db.cursor()
+
 
 # Function to generate a unique room code
 def generate_unique_code(length):
@@ -47,12 +69,13 @@ def generate_unique_code(length):
             code += random.choice(ascii_uppercase)
 
         # Check if the generated code already exists in the database
-        myCursor.execute("SELECT * FROM rooms WHERE code = %s", (code,))
-        result = myCursor.fetchone()
+        get_db().cursor().execute("SELECT * FROM rooms WHERE code = %s", (code,))
+        result = get_db().cursor().fetchone()
         if not result:
             break
 
     return code
+
 
 # Route for the home page
 @app.route("/", methods=["POST", "GET"])
@@ -75,19 +98,19 @@ def home():
         # Validation checks
         if not name:
             return render_template("home.html", error="Please enter a name.", code=code, name=name)
-        if join != False and not code:
+        if join is not False and not code:
             return render_template("home.html", error="Please enter a room code.", code=code, name=name)
 
         room = code
         if create != False:
             room = generate_unique_code(4)
             # Insert new room into the database
-            myCursor.execute("INSERT INTO rooms (code, members) VALUES (%s, %s)", (room, 0))
-            db.commit()
+            get_db().cursor().execute("INSERT INTO rooms (code, members) VALUES (%s, %s)", (room, 0))
+            get_db().commit()
         elif code:
             # Check if the entered room code exists in the database
-            myCursor.execute("SELECT * FROM rooms WHERE code = %s", (code,))
-            result = myCursor.fetchone()
+            get_db().cursor().execute("SELECT * FROM rooms WHERE code = %s", (code,))
+            result = get_db().cursor().fetchone()
             if not result:
                 return render_template("home.html", error="Room does not exist.", code=code, name=name)
             room = result[0]
@@ -95,14 +118,15 @@ def home():
         # Getting user IP address
         ip_address = request.remote_addr
 
-        myCursor.execute("INSERT INTO users (username, room, ip_address) VALUES (%s, %s, %s)", (name, room, ip_address))
-        db.commit()
+        get_db().cursor().execute("INSERT INTO users (username, room, ip_address) VALUES (%s, %s, %s)", (name, room, ip_address))
+        get_db().commit()
 
         session["room"] = room
         session["name"] = name
         return redirect(url_for("room"))
 
     return render_template("home.html")
+
 
 # Route for the chat room
 @app.route("/room")
@@ -117,11 +141,12 @@ def room():
         return redirect(url_for("home"))
 
     # Retrieve existing messages for the room from the database
-    myCursor.execute("SELECT * FROM messages WHERE room = %s", (room,))
-    messages = myCursor.fetchall()
+    get_db().cursor().execute("SELECT * FROM messages WHERE room = %s", (room,))
+    messages = get_db().cursor().fetchall()
 
     # Pass room code and messages to the template context
     return render_template("room.html", code=room, messages=messages)
+
 
 # SocketIO event for receiving messages
 @socketio.on("message")
@@ -141,11 +166,12 @@ def message(data):
     }
 
     # Insert new message into the database
-    myCursor.execute("INSERT INTO messages (room, sender, content) VALUES (%s, %s, %s)", (room, content["name"], content["message"]))
-    db.commit()
+    get_db().cursor().execute("INSERT INTO messages (room, sender, content) VALUES (%s, %s, %s)", (room, content["name"], content["message"]))
+    get_db().commit()
 
     send(content, to=room)
     print(f"{session.get('name')} said: {data['data']}")
+
 
 # SocketIO event for client connection
 @socketio.on("connect")
@@ -161,12 +187,13 @@ def connect(authorisation):
         return
 
     # Increment room members count in the database
-    myCursor.execute("UPDATE rooms SET members = members + 1 WHERE code = %s", (room,))
-    db.commit()
+    get_db().cursor().execute("UPDATE rooms SET members = members + 1 WHERE code = %s", (room,))
+    get_db().commit()
 
     join_room(room)
     send({"name": name, "messages": "has entered the chat"}, to=room)
     print(f"{name} joined room {room}")
+
 
 # SocketIO event for client disconnection
 @socketio.on("disconnect")
@@ -182,13 +209,15 @@ def disconnect():
         return
 
     # Decrement room members count in the database
-    myCursor.execute("UPDATE rooms SET members = members - 1 WHERE code = %s", (room,))
-    db.commit()
+    get_db().cursor().execute("UPDATE rooms SET members = members - 1 WHERE code = %s", (room,))
+    get_db().commit()
 
     leave_room(room)
     send({"name": name, "messages": "has left the chat"}, to=room)
     print(f"{name} left the chat {room}")
 
+
 # Entry point of the Flask application
 if __name__ == "__main__":
-    socketio.run(app, debug=True)
+    with app.app_context():
+        socketio.run(app, debug=True)
